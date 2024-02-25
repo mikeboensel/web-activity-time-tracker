@@ -34,38 +34,40 @@ export async function initTracker() {
 async function trackTime() {
   const repo = await injectTabsRepositorySingleton();
   const window = await Browser.windows.getLastFocused({ populate: true });
-  if (window.focused) {
-    const activeTab = window.tabs?.find(t => t.active === true);
-    if (isValidPage(activeTab)) {
-      const activeDomain = extractHostname(activeTab!.url);
-
-      if ((await isInBlackList(activeDomain)) && (await canChangeBadge())) {
-        await useBadge({
-          tabId: activeTab?.id,
-          text: 'n/a',
-          color: BadgeColor.green,
-        });
-      } else {
-        if (
-          currentObj != null &&
-          currentObj.activeDomain == activeDomain &&
-          !isActiveTabWasChanged(activeDomain)
-        ) {
-          await mainTrackerWrapper(activeTab!, activeDomain, currentObj.tab);
-          return;
-        }
-
-        let tab = repo.getTab(activeDomain);
-        if (tab == undefined) {
-          tab = await repo.addTab(activeDomain);
-        }
-        if (tab != undefined) {
-          await mainTrackerWrapper(activeTab!, activeDomain, tab);
-        }
-      }
-    } else await closeOpenInterval();
-  } else {
+  if (window.focused == false) {
     await closeOpenInterval();
+    return;
+  }
+  const activeTab = window.tabs?.find(t => t.active === true);
+  if (isValidPage(activeTab) == false) {
+    await closeOpenInterval();
+    return;
+  }
+  const activeDomain = extractHostname(activeTab!.url);
+
+  if ((await isInBlackList(activeDomain)) && (await canChangeBadge())) {
+    await useBadge({
+      tabId: activeTab?.id,
+      text: 'n/a',
+      color: BadgeColor.green,
+    });
+  } else {
+    if (
+      currentObj != null &&
+      currentObj.activeDomain == activeDomain &&
+      !isActiveTabWasChanged(activeDomain)
+    ) {
+      await mainTrackerWrapper(activeTab!, activeDomain, currentObj.tab);
+      return;
+    }
+
+    let tab = repo.getTab(activeDomain);
+    if (tab == undefined) {
+      tab = await repo.addTab(activeDomain);
+    }
+    if (tab != undefined) {
+      await mainTrackerWrapper(activeTab!, activeDomain, tab);
+    }
   }
 }
 
