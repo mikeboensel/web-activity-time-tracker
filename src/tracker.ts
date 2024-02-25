@@ -93,56 +93,57 @@ async function mainTracker(
   };
 
   const isAudibleValue = isAudible();
-  if (state === 'active' || isAudibleValue) {
-    const limitExceeded = await isLimitExceeded(activeDomain, tab);
-    if (limitExceeded.IsLimitExceeded) {
-      const summaryCounter = tab.days.at(-1)!.counter;
-      await useBlockPage(
-        activeDomain,
-        activeTab.url!,
-        limitExceeded.LimitTime!,
-        summaryCounter,
-        activeTab.favIconUrl,
-      );
-      return;
-    }
+  if (!(state === 'active' || isAudibleValue)) {
+    await closeOpenInterval();
+    return;
+  }
+  const limitExceeded = await isLimitExceeded(activeDomain, tab);
+  if (limitExceeded.IsLimitExceeded) {
+    const summaryCounter = tab.days.at(-1)!.counter;
+    await useBlockPage(
+      activeDomain,
+      activeTab.url!,
+      limitExceeded.LimitTime!,
+      summaryCounter,
+      activeTab.favIconUrl,
+    );
+    return;
+  }
 
-    if (isActiveTabWasChanged(activeDomain)) {
-      tab.incCounter();
-      (await useDailyIntervals()).closeInterval(activeTabInstance.getActiveTabDomain());
-      activeTabInstance.setActiveTab(activeTab.url!);
-      (await useDailyIntervals()).addInterval(activeTabInstance.getActiveTabDomain());
-    }
-    if (tab.favicon == '' && activeTab.favIconUrl != undefined)
-      tab.setFavicon(activeTab.favIconUrl);
+  if (isActiveTabWasChanged(activeDomain)) {
+    tab.incCounter();
+    (await useDailyIntervals()).closeInterval(activeTabInstance.getActiveTabDomain());
+    activeTabInstance.setActiveTab(activeTab.url!);
+    (await useDailyIntervals()).addInterval(activeTabInstance.getActiveTabDomain());
+  }
+  if (tab.favicon == '' && activeTab.favIconUrl != undefined) tab.setFavicon(activeTab.favIconUrl);
 
-    if (await useNotificationList().isNeedToShowNotification(activeDomain, tab)) {
-      const message = (await Settings.getInstance().getSetting(
-        StorageParams.NOTIFICATION_MESSAGE,
-      )) as string;
-      const title = `${activeDomain} notification`;
-      await useNotification(NotificationType.WebSiteNotification, title, message);
-    }
+  if (await useNotificationList().isNeedToShowNotification(activeDomain, tab)) {
+    const message = (await Settings.getInstance().getSetting(
+      StorageParams.NOTIFICATION_MESSAGE,
+    )) as string;
+    const title = `${activeDomain} notification`;
+    await useNotification(NotificationType.WebSiteNotification, title, message);
+  }
 
-    tab.incSummaryTime();
+  tab.incSummaryTime();
 
-    const viewInBadge = await Settings.getInstance().getSetting(StorageParams.VIEW_TIME_IN_BADGE);
+  const viewInBadge = await Settings.getInstance().getSetting(StorageParams.VIEW_TIME_IN_BADGE);
 
-    if (await canChangeBadge()) {
-      if (viewInBadge)
-        await useBadge({
-          tabId: activeTab?.id,
-          text: convertSummaryTimeToBadgeString(tab.days.at(-1)!.summary),
-          color: BadgeColor.blue,
-        });
-      else
-        await useBadge({
-          tabId: activeTab?.id,
-          text: null,
-          color: BadgeColor.none,
-        });
-    }
-  } else await closeOpenInterval();
+  if (await canChangeBadge()) {
+    if (viewInBadge)
+      await useBadge({
+        tabId: activeTab?.id,
+        text: convertSummaryTimeToBadgeString(tab.days.at(-1)!.summary),
+        color: BadgeColor.blue,
+      });
+    else
+      await useBadge({
+        tabId: activeTab?.id,
+        text: null,
+        color: BadgeColor.none,
+      });
+  }
 }
 
 async function mainTrackerWrapper(activeTab: Browser.Tabs.Tab, activeDomain: string, tab: Tab) {
